@@ -82,6 +82,8 @@ pub struct Grid {
     pub vertical_clues_solutions: Vec<Clues>,
     pub max_clues_size: Size,
     pub undo_redo_buffer: UndoRedoBuffer,
+    /// The total amount of cells required to be filled to solve the grid.
+    pub cells_to_be_filled: usize,
 }
 
 fn get_index(width: u16, point: Point) -> usize {
@@ -142,8 +144,10 @@ impl Grid {
             .max()
             .unwrap() as u16;
 
+        let mut cells_to_be_filled = 0;
         for cell in &mut cells {
             if *cell == Cell::Filled {
+                cells_to_be_filled += 1;
                 *cell = Cell::Empty;
             }
         }
@@ -159,6 +163,7 @@ impl Grid {
             vertical_clues_solutions,
             max_clues_size,
             undo_redo_buffer,
+            cells_to_be_filled,
         }
     }
 

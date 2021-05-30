@@ -52,17 +52,27 @@ impl Builder {
     }
 
     /// Draws the top clues while also returning whether all of them were solved ones.
-    fn draw_top_clues(&mut self, terminal: &mut Terminal) -> bool {
+    fn draw_top_clues(&mut self, terminal: &mut Terminal) -> usize {
         let mut highlighted = true;
         let mut all_solved = true;
+        let mut solved_cell_count = 0;
+
         for (x, vertical_clues_solution) in self.grid.vertical_clues_solutions.iter().enumerate() {
             let vertical_clues = self.grid.get_vertical_clues(x as u16);
-            let solved = vertical_clues.eq(vertical_clues_solution.iter().copied());
+            let solved = vertical_clues
+                .clone()
+                .eq(vertical_clues_solution.iter().copied());
 
             if highlighted {
                 terminal.set_background_color(Color::Byte(238));
             }
             if solved {
+                for y in 0..self.grid.size.height {
+                    // NOTE: the problem is that it also counts cells that already have been counted
+                    if let Cell::Filled = self.grid.get_cell(Point { x: x as u16, y }) {
+                        solved_cell_count += 1;
+                    }
+                }
                 terminal.set_foreground_color(Color::DarkGray);
             } else if !vertical_clues_solution.is_empty() {
                 all_solved = false;
@@ -80,7 +90,7 @@ impl Builder {
             self.cursor.point.x += 2;
         }
 
-        all_solved
+        solved_cell_count
     }
     /// Clears the top clues, only graphically.
     fn clear_top_clues(&mut self, terminal: &mut Terminal) {
@@ -105,21 +115,30 @@ impl Builder {
     }
 
     /// Draws the left clues while also returning whether all of them were solved ones.
-    fn draw_left_clues(&mut self, terminal: &mut Terminal) -> bool {
+    fn draw_left_clues(&mut self, terminal: &mut Terminal) -> usize {
         terminal.move_cursor_left(2);
         self.cursor.point.x -= 2;
         let mut highlighted = true;
         let mut all_solved = true;
+        let mut solved_cell_count = 0;
         for (y, horizontal_clues_solution) in
             self.grid.horizontal_clues_solutions.iter().enumerate()
         {
             let horizontal_clues = self.grid.get_horizontal_clues(y as u16);
-            let solved = horizontal_clues.eq(horizontal_clues_solution.iter().copied());
+            let solved = horizontal_clues
+                .clone()
+                .eq(horizontal_clues_solution.iter().copied());
 
             if highlighted {
                 terminal.set_background_color(Color::Byte(238));
             }
             if solved {
+                for x in 0..self.grid.size.width {
+                    // NOTE: the problem is that it also counts cells that already have been counted
+                    if let Cell::Filled = self.grid.get_cell(Point { y: y as u16, x }) {
+                        solved_cell_count += 1;
+                    }
+                }
                 terminal.set_foreground_color(Color::DarkGray);
             } else if !horizontal_clues_solution.is_empty() {
                 all_solved = false;
@@ -138,7 +157,7 @@ impl Builder {
             self.cursor.update(terminal);
         }
 
-        all_solved
+        solved_cell_count
     }
     /// Clears the left clues, only graphically.
     fn clear_left_clues(&mut self, terminal: &mut Terminal) {
@@ -161,22 +180,24 @@ impl Builder {
     }
 
     /// Draws all clues, the top clues and the left clues while also returning whether all the drawn clues were solved ones.
-    fn draw_clues(&mut self, terminal: &mut Terminal) -> bool {
+    fn draw_clues(&mut self, terminal: &mut Terminal) -> usize {
         self.cursor.update(terminal);
 
+        let mut solved_cell_count = 0;
+
         let previous_cursor_point = self.cursor.point;
-        let all_top_clues_solved = self.draw_top_clues(terminal);
+        solved_cell_count += self.draw_top_clues(terminal);
         self.cursor.point = previous_cursor_point;
 
         self.cursor.update(terminal);
 
         let previous_cursor_point = self.cursor.point;
-        let all_left_clues_solved = self.draw_left_clues(terminal);
+        solved_cell_count += self.draw_left_clues(terminal);
         self.cursor.point = previous_cursor_point;
 
         self.cursor.update(terminal);
 
-        all_top_clues_solved && all_left_clues_solved
+        solved_cell_count
     }
     /// Clears all clues, only graphically.
     pub fn clear_clues(&mut self, terminal: &mut Terminal) {
@@ -248,14 +269,37 @@ impl Builder {
         self.cursor.point.y = previous_cursor_y;
     }
 
+    fn draw_percentage(&mut self, terminal: &mut Terminal, solved_cell_count: usize) {
+        let previous_cursor_point = self.cursor.point;
+
+        let point = Point {
+            x: self.cursor.point.x + self.grid.size.width * 2 + 1,
+            y: self.cursor.point.y + self.grid.size.height / 2,
+        };
+
+        self.cursor.point = point;
+        self.cursor.update(terminal);
+
+        terminal.write(&format!(
+            "{}%  {} / {}",
+            ((solved_cell_count as f64 / self.grid.cells_to_be_filled as f64) * 100.) as usize,
+            solved_cell_count as f64,
+            self.grid.cells_to_be_filled as f64,
+        ));
+
+        self.cursor.point = previous_cursor_point;
+    }
+
     /// Draws the clues and the cells while also returning whether all the drawn clues were solved ones.
     #[must_use]
     pub fn draw(&mut self, terminal: &mut Terminal) -> bool {
-        let all_clues_solved = self.draw_clues(terminal);
+        let solved_cell_count = self.draw_clues(terminal);
 
         self.draw_cells(terminal);
 
-        all_clues_solved
+        self.draw_percentage(terminal, solved_cell_count);
+
+        solved_cell_count == self.grid.cells_to_be_filled
     }
 }
 
