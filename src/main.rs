@@ -100,8 +100,10 @@ fn run() -> Result<(), Cow<'static, str>> {
     Ok(())
 }
 
+const HELP_TEXT_COLOR: Color = Color::Byte(244);
+
 fn draw_help(terminal: &mut Terminal, builder: &Builder) {
-    terminal.set_foreground_color(Color::DarkGray);
+    terminal.set_foreground_color(HELP_TEXT_COLOR);
     let mut y = builder.cursor.point.y + builder.grid.size.height;
     draw_text(terminal, &builder, "Q: Undo, E: Redo, R: Reset", y);
     y += 1;
@@ -191,7 +193,7 @@ fn solved_screen(
             format!("Solved in {}", format_seconds(total_elapsed_seconds)).into()
         }
     };
-    terminal.set_foreground_color(Color::White);
+    terminal.set_foreground_color(Color::Byte(255));
     draw_text(terminal, &builder, &text, y - 1);
     terminal.reset_colors();
 

@@ -1,4 +1,6 @@
-use super::{Cell, Grid};
+use super::{
+    colors, {Cell, Grid},
+};
 use std::borrow::Cow;
 use terminal::{
     util::{Color, Point},
@@ -60,10 +62,10 @@ impl Builder {
             let solved = vertical_clues.eq(vertical_clues_solution.iter().copied());
 
             if highlighted {
-                terminal.set_background_color(Color::Byte(238));
+                terminal.set_background_color(colors::HIGHLIGHTED_CLUE_BACKGROUND_COLOR);
             }
             if solved {
-                terminal.set_foreground_color(Color::DarkGray);
+                terminal.set_foreground_color(colors::SOLVED_CLUE_COLOR);
             } else if !vertical_clues_solution.is_empty() {
                 all_solved = false;
             }
@@ -117,10 +119,10 @@ impl Builder {
             let solved = horizontal_clues.eq(horizontal_clues_solution.iter().copied());
 
             if highlighted {
-                terminal.set_background_color(Color::Byte(238));
+                terminal.set_background_color(colors::HIGHLIGHTED_CLUE_BACKGROUND_COLOR);
             }
             if solved {
-                terminal.set_foreground_color(Color::DarkGray);
+                terminal.set_foreground_color(colors::SOLVED_CLUE_COLOR);
             } else if !horizontal_clues_solution.is_empty() {
                 all_solved = false;
             }
@@ -208,36 +210,44 @@ impl Builder {
         {
             let previous_cursor_x = self.cursor.point.x;
             for (x, cell) in cells.iter().enumerate() {
-                let (cell_color, content): (Color, Cow<'static, str>) = match cell {
-                    Cell::Empty => {
-                        let x_reached_point = x / SEPARATING_POINT as usize % 2 == 0;
-                        let y_reached_point = y / SEPARATING_POINT as usize % 2 == 0;
-                        let cell_color = if x_reached_point ^ y_reached_point {
-                            Color::Byte(236)
-                        } else {
-                            Color::Byte(238)
-                        };
+                cell.draw(
+                    terminal,
+                    Point {
+                        x: x as u16,
+                        y: y as u16,
+                    },
+                    false,
+                );
+                // let (cell_color, content): (Color, Cow<'static, str>) = match cell {
+                //     Cell::Empty => {
+                //         let x_reached_point = x / SEPARATING_POINT as usize % 2 == 0;
+                //         let y_reached_point = y / SEPARATING_POINT as usize % 2 == 0;
+                //         let cell_color = if x_reached_point ^ y_reached_point {
+                //             Color::Byte(237)
+                //         } else {
+                //             Color::Byte(239)
+                //         };
 
-                        (cell_color, "  ".into())
-                    }
-                    Cell::Measured(index) => {
-                        let cell_color = cell.get_color();
+                //         (cell_color, "  ".into())
+                //     }
+                //     Cell::Measured(index) => {
+                //         let cell_color = cell.get_color();
 
-                        let content = if let Some(index) = index {
-                            terminal.set_foreground_color(Color::Black);
-                            format!("{:>2}", index).into()
-                        } else {
-                            "  ".into()
-                        };
+                //         let content = if let Some(index) = index {
+                //             terminal.set_foreground_color(Color::Black);
+                //             format!("{:>2}", index).into()
+                //         } else {
+                //             "  ".into()
+                //         };
 
-                        (cell_color, content)
-                    }
-                    _ => (cell.get_color(), "  ".into()),
-                };
+                //         (cell_color, content)
+                //     }
+                //     _ => (cell.get_color(), "  ".into()),
+                // };
 
-                terminal.set_background_color(cell_color);
-                terminal.write(&content);
-                terminal.reset_colors();
+                // terminal.set_background_color(cell_color);
+                // terminal.write(&content);
+                // terminal.reset_colors();
 
                 self.cursor.point.x += 2;
             }

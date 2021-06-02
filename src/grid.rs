@@ -1,10 +1,15 @@
+use crate::undo_redo_buffer::UndoRedoBuffer;
 use itertools::Itertools;
-use terminal::util::{Color, Point, Size};
+use std::{borrow::Cow, cell};
+use terminal::{
+    util::{Color, Point, Size},
+    Terminal,
+};
 pub mod builder;
+mod colors;
 #[cfg(debug_assertions)]
 pub mod debug;
 mod random;
-use crate::undo_redo_buffer::UndoRedoBuffer;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Cell {
@@ -40,29 +45,77 @@ impl From<bool> for Cell {
 }
 
 impl Cell {
+    pub fn draw(&self, terminal: &mut Terminal, point: Point, dark: bool) {
+        const SEPARATING_POINT: u16 = 5;
+
+        let (cell_color, content): (u8, Cow<'static, str>) = match self {
+            Cell::Empty => {
+                let x_reached_point = point.x / SEPARATING_POINT % 2 == 0;
+                let y_reached_point = point.y / SEPARATING_POINT % 2 == 0;
+                let cell_color = if x_reached_point ^ y_reached_point {
+                    237
+                } else {
+                    239
+                };
+
+                (cell_color, "  ".into())
+            }
+            Cell::Filled => (255, "  ".into()),
+            Cell::Crossed => (124, "  ".into()),
+            Cell::Maybed => (39, "  ".into()),
+            Cell::Measured(index) => {
+                let cell_color = 46;
+
+                let content = if let Some(index) = index {
+                    terminal.set_foreground_color(Color::Black);
+                    format!("{:>2}", index).into()
+                } else {
+                    "  ".into()
+                };
+
+                (cell_color, content)
+            }
+        };
+
+        let cell_color = if dark {
+            Color::Byte(cell_color - 2)
+        } else {
+            Color::Byte(cell_color)
+        };
+
+        terminal.set_background_color(cell_color);
+        terminal.write(&content);
+        terminal.reset_colors();
+    }
+
     fn get_color(&self) -> Color {
         match self {
-            Cell::Empty => Color::default(),
-            Cell::Filled => Color::White,
-            Cell::Maybed => Color::Blue,
-            Cell::Crossed => Color::Red,
-            Cell::Measured(_) => Color::Green,
+            Cell::Empty => unreachable!(), // TODO
+            Cell::Filled => Color::Byte(255),
+            Cell::Maybed => Color::Byte(39),
+            Cell::Crossed => Color::Byte(124),
+            Cell::Measured(_) => Color::Byte(46),
         }
     }
 
     pub fn get_dark_color(&self) -> Color {
         match self {
-            Cell::Empty => Color::DarkGray,
-            Cell::Filled => Color::Gray,
-            Cell::Maybed => Color::DarkBlue,
-            Cell::Crossed => Color::DarkRed,
-            Cell::Measured(_) => Color::DarkGreen,
+            Cell::Empty => Color::Byte(236),
+            Cell::Filled => Color::Byte(253),
+            Cell::Maybed => Color::Byte(38),
+            Cell::Crossed => Color::Byte(88),
+            Cell::Measured(_) => Color::Byte(40),
         }
     }
 
     pub fn get_darkest_color(&self) -> Color {
-        // TODO
-        self.get_dark_color()
+        match self {
+            Cell::Empty => Color::Byte(235),
+            Cell::Filled => Color::Byte(251),
+            Cell::Maybed => Color::Byte(37),
+            Cell::Crossed => Color::Byte(52),
+            Cell::Measured(_) => Color::Byte(34),
+        }
     }
 }
 
